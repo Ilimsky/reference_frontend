@@ -26,6 +26,9 @@ class AuthService with ChangeNotifier {
     _dio.options.connectTimeout = const Duration(seconds: 5);
     _dio.options.receiveTimeout = const Duration(seconds: 3);
     _dio.options.headers['Content-Type'] = 'application/json';
+    _dio.options.validateStatus = (status) {
+      return status! < 500; // Принимаем все коды состояния меньше 500
+    };
 
     // Добавляем логирование интерцепторов
     _dio.interceptors.add(

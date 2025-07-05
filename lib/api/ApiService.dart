@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../auth/auth_service.dart';
+import '../auth/user.dart';
 import '../models/Account.dart';
 import '../models/Binding.dart';
 import '../models/Department.dart';
@@ -8,12 +9,63 @@ import '../models/Employee.dart';
 import '../models/Job.dart';
 import '../models/Revizor.dart';
 
-import 'package:dio/dio.dart';
-
 class ApiService {
   final Dio _dio;
 
   ApiService(AuthService authService) : _dio = authService.dioInstance;
+
+  // === ACCOUNTS ===
+  Future<List<Account>> fetchAccounts() async {
+    final response = await _dio.get('/accounts');
+    return (response.data as List).map((e) => Account.fromJson(e)).toList();
+  }
+
+  Future<Account> createAccount(String name) async {
+    final response = await _dio.post('/accounts', data: {'name': name});
+    return Account.fromJson(response.data);
+  }
+
+  Future<Account> updateAccount(int id, String name) async {
+    final response = await _dio.put('/accounts/$id', data: {'name': name});
+    return Account.fromJson(response.data);
+  }
+
+  Future<void> deleteAccount(int id) async {
+    await _dio.delete('/accounts/$id');
+  }
+
+  // === USERS ===
+  Future<List<User>> fetchUsers() async {
+    final response = await _dio.get('/users');
+    return (response.data as List).map((e) => User.fromJson(e)).toList();
+  }
+
+  Future<void> createUser(String username, String password, Set<String> roles) async {
+    await _dio.post('/users', data: {
+      'username': username,
+      'password': password,
+      'roles': roles.toList(),
+    });
+  }
+
+  Future<void> updateUser(int id, String username, Set<String> roles, {String? password}) async {
+    final data = {
+      'username': username,
+      'roles': roles.toList(),
+    };
+    if (password != null && password.isNotEmpty) {
+      data['password'] = password;
+    }
+
+    await _dio.put('/users/$id', data: data);
+  }
+
+  Future<void> deleteUser(int id) async {
+    await _dio.delete('/users/$id');
+  }
+
+
+
 
   // === DEPARTMENTS ===
   Future<List<Department>> fetchDepartments() async {
@@ -128,23 +180,5 @@ class ApiService {
     await _dio.delete('/jobs/$id');
   }
 
-  // === ACCOUNTS ===
-  Future<List<Account>> fetchAccounts() async {
-    final response = await _dio.get('/accounts');
-    return (response.data as List).map((e) => Account.fromJson(e)).toList();
-  }
 
-  Future<Account> createAccount(String name) async {
-    final response = await _dio.post('/accounts', data: {'name': name});
-    return Account.fromJson(response.data);
-  }
-
-  Future<Account> updateAccount(int id, String name) async {
-    final response = await _dio.put('/accounts/$id', data: {'name': name});
-    return Account.fromJson(response.data);
-  }
-
-  Future<void> deleteAccount(int id) async {
-    await _dio.delete('/accounts/$id');
-  }
 }

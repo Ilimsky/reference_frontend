@@ -6,29 +6,35 @@ import 'package:reference_frontend/providers/DepartmentProvider.dart';
 import 'package:reference_frontend/providers/EmployeeProvider.dart';
 import 'package:reference_frontend/providers/JobProvider.dart';
 import 'package:reference_frontend/providers/RevizorProvider.dart';
+import 'package:reference_frontend/providers/user_provider.dart';
 import 'package:reference_frontend/screens/reference_screen/reference_screen.dart';
 
 import 'api/ApiService.dart';
 import 'auth/auth_service.dart';
 import 'auth/login_screen.dart';
-import 'auth/user_service.dart';
+
 
 void main() {
   runApp(
     MultiProvider(
       providers: [
-        /// Auth и UserService
-        ChangeNotifierProvider(create: (_) => AuthService()),
+        // 1. AuthService
+        ChangeNotifierProvider<AuthService>(
+          create: (_) => AuthService(),
+        ),
+
+        // 2. ApiService зависит от AuthService
         ProxyProvider<AuthService, ApiService>(
           update: (_, authService, __) => ApiService(authService),
         ),
-        ProxyProvider<AuthService, UserService>(
-          update: (_, authService, __) => UserService(authService),
-        ),
 
-        /// Провайдеры, зависящие от ApiService
+        // 3. Провайдеры, зависящие от ApiService — создаём с заглушкой
+        ChangeNotifierProxyProvider<ApiService, UserProvider>(
+          create: (_) => UserProvider(ApiService(AuthService())), // заглушка
+          update: (_, apiService, __) => UserProvider(apiService),
+        ),
         ChangeNotifierProxyProvider<ApiService, BindingProvider>(
-          create: (_) => BindingProvider(ApiService(AuthService())), // заглушка
+          create: (_) => BindingProvider(ApiService(AuthService())),
           update: (_, apiService, __) => BindingProvider(apiService),
         ),
         ChangeNotifierProxyProvider<ApiService, DepartmentProvider>(
@@ -56,7 +62,6 @@ void main() {
     ),
   );
 }
-
 
 
 class MyApp extends StatelessWidget {

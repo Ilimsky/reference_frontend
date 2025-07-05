@@ -6,13 +6,17 @@ import '../../auth/auth_service.dart';
 import '../../auth/create_user_screen.dart';
 import '../../auth/edit_user_dialog.dart';
 import '../../auth/user.dart';
-import '../../auth/user_service.dart';
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../providers/user_provider.dart';
 
 class UsersTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
-    final userService = Provider.of<UserService>(context);
+    final userProvider = Provider.of<UserProvider>(context);
 
     return Column(
       children: [
@@ -23,23 +27,23 @@ class UsersTab extends StatelessWidget {
               children: [
                 IconButton(
                   icon: const Icon(Icons.add),
-                  onPressed: () => _addUser(context),
+                  onPressed: () => _addUser(context, userProvider),
                 ),
               ],
             ),
           ),
         Expanded(
-          child: userService.isLoading
+          child: userProvider.isLoading
               ? const Center(child: CircularProgressIndicator())
               : ListView.builder(
-            itemCount: userService.users.length,
+            itemCount: userProvider.users.length,
             itemBuilder: (context, index) {
-              final user = userService.users[index];
+              final user = userProvider.users[index];
               return ListTile(
                 title: Text(user.username),
                 subtitle: Text(user.roles.join(', ')),
-                trailing: authService.hasRole('ROLE_ADMIN') ||
-                    authService.hasRole('ROLE_SUPERADMIN')
+                trailing: (authService.hasRole('ROLE_ADMIN') ||
+                    authService.hasRole('ROLE_SUPERADMIN'))
                     ? Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -47,12 +51,11 @@ class UsersTab extends StatelessWidget {
                         !user.roles.contains('ROLE_SUPERADMIN'))
                       IconButton(
                         icon: const Icon(Icons.delete),
-                        onPressed: () =>
-                            _showDeleteUserDialog(context, user.id),
+                        onPressed: () => _showDeleteUserDialog(context, user.id, userProvider),
                       ),
                     IconButton(
                       icon: const Icon(Icons.edit),
-                      onPressed: () => _editUser(context, user),
+                      onPressed: () => _editUser(context, user, userProvider),
                     ),
                   ],
                 )
@@ -65,22 +68,22 @@ class UsersTab extends StatelessWidget {
     );
   }
 
-  Future<void> _addUser(BuildContext context) async {
+  Future<void> _addUser(BuildContext context, UserProvider userProvider) async {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const CreateUserScreen()),
     );
 
     try {
-      await Provider.of<UserService>(context, listen: false).fetchUsers();
+      await userProvider.fetchUsers();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to refresh user list: $e')),
+        SnackBar(content: Text('Не удалось обновить список пользователей: $e')),
       );
     }
   }
 
-  Future<void> _editUser(BuildContext context, User user) async {
+  Future<void> _editUser(BuildContext context, User user, UserProvider userProvider) async {
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => EditUserDialog(user: user),
@@ -88,51 +91,54 @@ class UsersTab extends StatelessWidget {
 
     if (result != null) {
       try {
-        await Provider.of<UserService>(context, listen: false).updateUser(
-          id: user.id,
-          username: result['username'] ?? user.username,
-          roles: Set<String>.from(result['roles'] ?? user.roles),
+        await userProvider.updateUser(
+          user.id,
+          result['username'] ?? user.username,
+          Set<String>.from(result['roles'] ?? user.roles),
           password: result['password']?.isNotEmpty == true ? result['password'] : null,
         );
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User updated successfully')),
+          const SnackBar(content: Text('Пользователь успешно обновлён')),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update user: $e')),
+          SnackBar(content: Text('Ошибка при обновлении: $e')),
         );
       }
     }
   }
 
-  Future<void> _showDeleteUserDialog(BuildContext context, int userId) async {
-    final confirmed = await showDialog<bool>(
+  void _showDeleteUserDialog(BuildContext context, int userId, UserProvider userProvider) {
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete User'),
-        content: const Text('Are you sure you want to delete this user?'),
+        title: const Text('Удалить пользователя'),
+        content: const Text('Вы уверены, что хотите удалить этого пользователя?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Отмена'),
           ),
           TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            onPressed: () async {
+              try {
+                await userProvider.deleteUser(userId);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Пользователь удалён')),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Ошибка при удалении: $e')),
+                );
+              }
+            },
+            child: const Text('Удалить', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
-
-    if (confirmed == true) {
-      try {
-        await Provider.of<UserService>(context, listen: false).deleteUser(userId);
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete user: $e')),
-        );
-      }
-    }
   }
 }

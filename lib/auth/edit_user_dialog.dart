@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reference_frontend/auth/user.dart';
 import 'auth_service.dart';
-import 'user_service.dart';
 
-// Обновим EditUserDialog
 class EditUserDialog extends StatefulWidget {
   final User user;
 
@@ -16,16 +14,16 @@ class EditUserDialog extends StatefulWidget {
 }
 
 class _EditUserDialogState extends State<EditUserDialog> {
-  late Set<String> _selectedRoles;
   late TextEditingController _usernameController;
   late TextEditingController _passwordController;
+  late Set<String> _selectedRoles;
 
   @override
   void initState() {
     super.initState();
-    _selectedRoles = Set.from(widget.user.roles);
     _usernameController = TextEditingController(text: widget.user.username);
     _passwordController = TextEditingController();
+    _selectedRoles = Set.from(widget.user.roles);
   }
 
   @override
@@ -34,39 +32,38 @@ class _EditUserDialogState extends State<EditUserDialog> {
     final isSuperAdmin = authService.hasRole('ROLE_SUPERADMIN');
     final isAdmin = authService.hasRole('ROLE_ADMIN');
 
+    final canEditUsername = isSuperAdmin || (isAdmin &&
+        !widget.user.roles.contains('ROLE_SUPERADMIN') &&
+        !widget.user.roles.contains('ROLE_ADMIN'));
+
     return AlertDialog(
-      title: const Text('Edit User'),
+      title: const Text('Редактировать пользователя'),
       content: SingleChildScrollView(
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            TextFormField(
+            TextField(
               controller: _usernameController,
-              decoration: const InputDecoration(labelText: 'Username'),
-              enabled:
-                  isSuperAdmin ||
-                  (isAdmin &&
-                      !widget.user.roles.contains('ROLE_SUPERADMIN') &&
-                      !widget.user.roles.contains('ROLE_ADMIN')),
+              decoration: const InputDecoration(labelText: 'Имя пользователя'),
+              enabled: canEditUsername,
             ),
-            TextFormField(
+            TextField(
               controller: _passwordController,
-              decoration: const InputDecoration(
-                labelText: 'New Password (leave empty to keep current)',
-              ),
               obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Новый пароль (необязательно)',
+              ),
             ),
-            const SizedBox(height: 20),
-            const Text('Roles:'),
+            const SizedBox(height: 16),
+            const Text('Роли:'),
             CheckboxListTile(
               title: const Text('User'),
               value: _selectedRoles.contains('ROLE_USER'),
-              onChanged: (value) {
+              onChanged: (val) {
                 setState(() {
-                  if (value == true) {
-                    _selectedRoles.add('ROLE_USER');
-                  } else {
-                    _selectedRoles.remove('ROLE_USER');
-                  }
+                  val == true
+                      ? _selectedRoles.add('ROLE_USER')
+                      : _selectedRoles.remove('ROLE_USER');
                 });
               },
             ),
@@ -74,15 +71,13 @@ class _EditUserDialogState extends State<EditUserDialog> {
               title: const Text('Admin'),
               value: _selectedRoles.contains('ROLE_ADMIN'),
               onChanged: isSuperAdmin
-                  ? (value) {
-                      setState(() {
-                        if (value == true) {
-                          _selectedRoles.add('ROLE_ADMIN');
-                        } else {
-                          _selectedRoles.remove('ROLE_ADMIN');
-                        }
-                      });
-                    }
+                  ? (val) {
+                setState(() {
+                  val == true
+                      ? _selectedRoles.add('ROLE_ADMIN')
+                      : _selectedRoles.remove('ROLE_ADMIN');
+                });
+              }
                   : null,
             ),
           ],
@@ -91,7 +86,7 @@ class _EditUserDialogState extends State<EditUserDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: const Text('Отмена'),
         ),
         TextButton(
           onPressed: () {
@@ -101,7 +96,7 @@ class _EditUserDialogState extends State<EditUserDialog> {
               'roles': _selectedRoles.toList(),
             });
           },
-          child: const Text('Save'),
+          child: const Text('Сохранить'),
         ),
       ],
     );
