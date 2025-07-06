@@ -39,23 +39,32 @@ class UsersTab extends StatelessWidget {
             itemCount: userProvider.users.length,
             itemBuilder: (context, index) {
               final user = userProvider.users[index];
+              final isTargetSuperAdmin = user.roles.contains('ROLE_SUPERADMIN');
+              final isCurrentSuperAdmin = authService.hasRole('ROLE_SUPERADMIN');
+              final isCurrentAdmin = authService.hasRole('ROLE_ADMIN');
+
+              final canEdit = isCurrentSuperAdmin ||
+                  (isCurrentAdmin && !isTargetSuperAdmin);
+
+              final canDelete = isCurrentSuperAdmin && !isTargetSuperAdmin;
+
               return ListTile(
                 title: Text(user.username),
                 subtitle: Text(user.roles.join(', ')),
-                trailing: (authService.hasRole('ROLE_ADMIN') ||
-                    authService.hasRole('ROLE_SUPERADMIN'))
+                trailing: canEdit
                     ? Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (authService.hasRole('ROLE_SUPERADMIN') &&
-                        !user.roles.contains('ROLE_SUPERADMIN'))
+                    if (canDelete)
                       IconButton(
                         icon: const Icon(Icons.delete),
-                        onPressed: () => _showDeleteUserDialog(context, user.id, userProvider),
+                        onPressed: () => _showDeleteUserDialog(
+                            context, user.id, userProvider),
                       ),
                     IconButton(
                       icon: const Icon(Icons.edit),
-                      onPressed: () => _editUser(context, user, userProvider),
+                      onPressed: () => _editUser(
+                          context, user, userProvider, canEdit),
                     ),
                   ],
                 )
@@ -83,7 +92,9 @@ class UsersTab extends StatelessWidget {
     }
   }
 
-  Future<void> _editUser(BuildContext context, User user, UserProvider userProvider) async {
+  Future<void> _editUser(BuildContext context, User user, UserProvider userProvider, bool canEdit) async {
+    if (!canEdit) return;
+
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => EditUserDialog(user: user),

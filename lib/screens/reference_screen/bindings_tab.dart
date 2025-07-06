@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../auth/auth_service.dart';
 import '../../providers/BindingProvider.dart';
 import '../../providers/DepartmentProvider.dart';
 import '../../providers/EmployeeProvider.dart';
@@ -28,6 +29,14 @@ class _BindingsTabState extends State<BindingsTab> {
     final employeeProvider = Provider.of<EmployeeProvider>(context);
     final departmentProvider = Provider.of<DepartmentProvider>(context);
     final bindingProvider = Provider.of<BindingProvider>(context);
+    final authService = Provider.of<AuthService>(context, listen: false);
+
+    bool isSuperAdmin = authService.roles.contains('ROLE_SUPERADMIN');
+    bool isAdmin = authService.roles.contains('ROLE_ADMIN');
+
+    bool canEdit = isSuperAdmin || isAdmin;
+    bool canDelete = isSuperAdmin;
+    bool canCreate = isSuperAdmin || isAdmin;
 
     return Column(
       children: [
@@ -41,7 +50,7 @@ class _BindingsTabState extends State<BindingsTab> {
                   value: selectedEmployeeId,
                   items: employeeProvider.employees
                       .map((e) =>
-                          DropdownMenuItem(value: e.id, child: Text(e.name)))
+                      DropdownMenuItem(value: e.id, child: Text(e.name)))
                       .toList(),
                   onChanged: (value) =>
                       setState(() => selectedEmployeeId = value),
@@ -54,25 +63,26 @@ class _BindingsTabState extends State<BindingsTab> {
                   value: selectedDepartmentId,
                   items: departmentProvider.departments
                       .map((d) =>
-                          DropdownMenuItem(value: d.id, child: Text(d.name)))
+                      DropdownMenuItem(value: d.id, child: Text(d.name)))
                       .toList(),
                   onChanged: (value) =>
                       setState(() => selectedDepartmentId = value),
                 ),
               ),
               SizedBox(width: 8),
-              ElevatedButton(
-                onPressed:
-                    selectedEmployeeId != null && selectedDepartmentId != null
-                        ? () {
-                            bindingProvider.createBinding(
-                              employeeId: selectedEmployeeId!,
-                              departmentId: selectedDepartmentId!,
-                            );
-                          }
-                        : null,
-                child: Text('Привязать'),
-              ),
+              if (canCreate)
+                ElevatedButton(
+                  onPressed:
+                  selectedEmployeeId != null && selectedDepartmentId != null
+                      ? () {
+                    bindingProvider.createBinding(
+                      employeeId: selectedEmployeeId!,
+                      departmentId: selectedDepartmentId!,
+                    );
+                  }
+                      : null,
+                  child: Text('Привязать'),
+                ),
             ],
           ),
         ),
@@ -91,16 +101,18 @@ class _BindingsTabState extends State<BindingsTab> {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    IconButton(
-                      icon: Icon(Icons.edit),
-                      onPressed: () =>
-                          _showEditDialog(context, bindingProvider, binding),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.delete),
-                      onPressed: () =>
-                          _confirmDelete(context, bindingProvider, binding.id),
-                    ),
+                    if (canEdit)
+                      IconButton(
+                        icon: Icon(Icons.edit),
+                        onPressed: () =>
+                            _showEditDialog(context, bindingProvider, binding),
+                      ),
+                    if (canDelete)
+                      IconButton(
+                        icon: Icon(Icons.delete),
+                        onPressed: () =>
+                            _confirmDelete(context, bindingProvider, binding.id),
+                      ),
                   ],
                 ),
               );
@@ -117,9 +129,9 @@ class _BindingsTabState extends State<BindingsTab> {
     int? departmentId = binding.department?.id;
 
     final employeeProvider =
-        Provider.of<EmployeeProvider>(context, listen: false);
+    Provider.of<EmployeeProvider>(context, listen: false);
     final departmentProvider =
-        Provider.of<DepartmentProvider>(context, listen: false);
+    Provider.of<DepartmentProvider>(context, listen: false);
 
     showDialog(
       context: context,
@@ -136,19 +148,19 @@ class _BindingsTabState extends State<BindingsTab> {
                     : null,
                 items: employeeProvider.employees
                     .map((e) =>
-                        DropdownMenuItem(value: e.id, child: Text(e.name)))
+                    DropdownMenuItem(value: e.id, child: Text(e.name)))
                     .toList(),
                 onChanged: (value) => setState(() => employeeId = value),
               ),
               DropdownButtonFormField<int>(
                 decoration: InputDecoration(labelText: 'Филиал'),
                 value: departmentProvider.departments
-                        .any((d) => d.id == departmentId)
+                    .any((d) => d.id == departmentId)
                     ? departmentId
                     : null,
                 items: departmentProvider.departments
                     .map((d) =>
-                        DropdownMenuItem(value: d.id, child: Text(d.name)))
+                    DropdownMenuItem(value: d.id, child: Text(d.name)))
                     .toList(),
                 onChanged: (value) => setState(() => departmentId = value),
               ),

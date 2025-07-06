@@ -2,12 +2,22 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../auth/auth_service.dart';
 import '../../providers/JobProvider.dart';
 
 class JobsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final jobProvider = Provider.of<JobProvider>(context);
+    final authService = Provider.of<AuthService>(context, listen: false);
+
+    bool isSuperAdmin = authService.roles.contains('ROLE_SUPERADMIN');
+    bool isAdmin = authService.roles.contains('ROLE_ADMIN');
+    bool isUser = authService.roles.contains('ROLE_USER');
+
+    bool canEdit = isSuperAdmin || isAdmin;
+    bool canDelete = isSuperAdmin; // только суперадмин
+    bool canCreate = isSuperAdmin || isAdmin;
 
     return Column(
       children: [
@@ -15,30 +25,31 @@ class JobsTab extends StatelessWidget {
           padding: EdgeInsets.all(8.0),
           child: Row(
             children: [
-              IconButton(
-                icon: Icon(Icons.add),
-                onPressed: () {
-                  final textController = TextEditingController();
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: Text('Добавить должность'),
-                      content: TextField(controller: textController),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            if (textController.text.isNotEmpty) {
-                              jobProvider.createJob(textController.text);
-                              Navigator.pop(context);
-                            }
-                          },
-                          child: Text('Добавить'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+              if (canCreate)
+                IconButton(
+                  icon: Icon(Icons.add),
+                  onPressed: () {
+                    final textController = TextEditingController();
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text('Добавить должность'),
+                        content: TextField(controller: textController),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              if (textController.text.isNotEmpty) {
+                                jobProvider.createJob(textController.text);
+                                Navigator.pop(context);
+                              }
+                            },
+                            child: Text('Добавить'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
             ],
           ),
         ),
@@ -54,34 +65,40 @@ class JobsTab extends StatelessWidget {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    IconButton(
-                      icon: Icon(Icons.edit),
-                      onPressed: () {
-                        final textController = TextEditingController(text: job.name);
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: Text('Редактировать должность'),
-                            content: TextField(controller: textController),
-                            actions: [
-                              TextButton(
-                                onPressed: () {
-                                  if (textController.text.isNotEmpty) {
-                                    jobProvider.updateJob(job.id, textController.text);
-                                    Navigator.pop(context);
-                                  }
-                                },
-                                child: Text('Сохранить'),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.delete),
-                      onPressed: () => _showDeleteDialog(context, job.id, jobProvider),
-                    ),
+                    if (canEdit)
+                      IconButton(
+                        icon: Icon(Icons.edit),
+                        onPressed: () {
+                          final textController =
+                          TextEditingController(text: job.name);
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: Text('Редактировать должность'),
+                              content:
+                              TextField(controller: textController),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    if (textController.text.isNotEmpty) {
+                                      jobProvider.updateJob(
+                                          job.id, textController.text);
+                                      Navigator.pop(context);
+                                    }
+                                  },
+                                  child: Text('Сохранить'),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    if (canDelete)
+                      IconButton(
+                        icon: Icon(Icons.delete),
+                        onPressed: () => _showDeleteDialog(
+                            context, job.id, jobProvider),
+                      ),
                   ],
                 ),
               );
@@ -92,7 +109,8 @@ class JobsTab extends StatelessWidget {
     );
   }
 
-  void _showDeleteDialog(BuildContext context, int jobId, JobProvider jobProvider) {
+  void _showDeleteDialog(
+      BuildContext context, int jobId, JobProvider jobProvider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

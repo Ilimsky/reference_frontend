@@ -1,4 +1,3 @@
-// edit_user_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reference_frontend/auth/user.dart';
