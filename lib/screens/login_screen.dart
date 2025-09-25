@@ -21,7 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<AuthService>(context, listen: false).autoLogin().then((_) {
         if (Provider.of<AuthService>(context, listen: false).isAuthenticated) {
-          Navigator.pushReplacementNamed(context, '/profile');
+          Navigator.pushReplacementNamed(context, '/home');
         }
       });
     });

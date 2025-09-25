@@ -13,8 +13,6 @@ import 'package:reference_frontend/screens/reference_screen/reference_screen.dar
 import 'package:reference_frontend/service/api_service.dart';
 import 'package:reference_frontend/service/auth_service.dart';
 
-
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final authService = AuthService();
@@ -22,17 +20,11 @@ Future<void> main() async {
   runApp(
     MultiProvider(
       providers: [
-        // 1. AuthService
-        ChangeNotifierProvider<AuthService>(
-          create: (_) => AuthService(),
-        ),
+        ChangeNotifierProvider<AuthService>.value(value: authService),  // Один экземпляр с токеном
 
-        // 2. ApiService зависит от AuthService
         ProxyProvider<AuthService, ApiService>(
           update: (_, authService, __) => ApiService(authService.dioInstance, authService),
         ),
-
-        // 3. Провайдеры, зависящие от ApiService — создаём с заглушкой
         ChangeNotifierProxyProvider<ApiService, UserProvider>(
           create: (_) => UserProvider(ApiService(authService.dioInstance, authService)),
           update: (_, apiService, __) => UserProvider(apiService),

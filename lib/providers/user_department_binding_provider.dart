@@ -52,9 +52,7 @@ class UserDepartmentBindingProvider extends ChangeNotifier {
     int? departmentId,
   }) async {
     try {
-      // Теперь вызываем createUser с departmentId — бэкенд сам создаст привязку, если нужно
       await apiService.createUser(username, password, roles, departmentId: departmentId);
-      // Обновляем списки после создания
       await fetchBindings();
     } catch (e) {
       rethrow;

@@ -18,9 +18,9 @@ class ReferenceScreen extends StatelessWidget {
           title: Text('Справочник'),
           bottom: TabBar(
             tabs: [
-              Tab(text: 'Привязка'),
               Tab(text: 'Филиалы'),
               Tab(text: 'Сотрудники'),
+              Tab(text: 'Привязка'),
               Tab(text: 'Ревизоры'),
               Tab(text: 'Должности'),
               Tab(text: 'Счета'),
@@ -30,9 +30,9 @@ class ReferenceScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            BindingsTab(), // Вкладка для привязки
             DepartmentsTab(), // Вкладка для филиалов
             EmployeesTab(), // Вкладка для сотрудников
+            BindingsTab(), // Вкладка для привязки
             RevizorsTab(), // Вкладка для ревизоров
             JobsTab(), // Вкладка для должностей
             AccountsTab(), // Вкладка для счетов

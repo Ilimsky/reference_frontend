@@ -11,20 +11,39 @@ import '../../providers/user_department_binding_provider.dart';
 import '../../providers/department_provider.dart';
 import '../edit_user_dialog.dart';
 
-class UsersTab extends StatelessWidget {
+class UsersTab extends StatefulWidget {
+  @override
+  _UsersTabState createState() => _UsersTabState();
+}
+
+class _UsersTabState extends State<UsersTab> {
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeData();
+  }
+
+  void _initializeData() {
+    if (!_initialized) {
+      _initialized = true;
+      Future.microtask(() {
+        final bindingProvider = Provider.of<UserDepartmentBindingProvider>(context, listen: false);
+        final departmentProvider = Provider.of<DepartmentProvider>(context, listen: false);
+
+        bindingProvider.fetchBindings();
+        departmentProvider.fetchDepartments();
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authService = Provider.of<AuthService>(context);
     final userProvider = Provider.of<UserProvider>(context);
     final bindingProvider = Provider.of<UserDepartmentBindingProvider>(context);
     final departmentProvider = Provider.of<DepartmentProvider>(context);
-
-    // Загружаем привязки и департаменты при открытии таба
-    Future.microtask(() {
-      // print('Fetching bindings and departments');
-      bindingProvider.fetchBindings();
-      departmentProvider.fetchDepartments();
-    });
 
     return Column(
       children: [
@@ -50,23 +69,18 @@ class UsersTab extends StatelessWidget {
               final isTargetSuperAdmin = user.roles.contains('ROLE_SUPERADMIN');
               final isCurrentSuperAdmin = authService.hasRole('ROLE_SUPERADMIN');
               final isCurrentAdmin = authService.hasRole('ROLE_ADMIN');
-
               final canEdit = isCurrentSuperAdmin || (isCurrentAdmin && !isTargetSuperAdmin);
               final canDelete = isCurrentSuperAdmin && !isTargetSuperAdmin;
 
-              // Получаем привязки для текущего пользователя
               final userBindings = bindingProvider.bindings
                   .where((binding) => binding.user?.id == user.id)
                   .toList();
 
-              // Формируем текст с привязками в формате "user → department"
               final bindingTexts = userBindings.map((binding) {
                 final user = binding.user?.username ?? 'Не найдено';
                 final department = binding.department?.name ?? 'Не найдено';
                 return '$user → $department';
               }).toList();
-
-              // print('Rendering user: ${user.username}, bindings: $bindingTexts');
 
               return ListTile(
                 title: Text(user.username),
@@ -140,11 +154,12 @@ class UsersTab extends StatelessWidget {
       bool canEdit,
       ) async {
     if (!canEdit) {
-      // print('Edit not allowed for user: ${user.username}');
       return;
     }
 
-    // print('Showing edit dialog for user: ${user.username}');
+    // СОХРАНИТЬ ЗАРАНЕЕ
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => EditUserDialog(
@@ -158,7 +173,6 @@ class UsersTab extends StatelessWidget {
 
     if (result != null) {
       try {
-        print('Updating user: ${user.username} with new data: $result');
         await userProvider.updateUser(
           user.id,
           result['username'] ?? user.username,
@@ -166,7 +180,6 @@ class UsersTab extends StatelessWidget {
           password: result['password']?.isNotEmpty == true ? result['password'] : null,
         );
 
-        // Обновляем или создаем привязку, если роль USER и выбран отдел
         if (result['roles'].contains('ROLE_USER') && result['departmentId'] != null) {
           final existingBinding = bindingProvider.bindings.firstWhere(
                 (b) => b.userId == user.id,
@@ -174,55 +187,43 @@ class UsersTab extends StatelessWidget {
           );
 
           if (existingBinding.id != 0) {
-            // Обновляем существующую привязку
-            print('Updating binding for userId: ${user.id}, departmentId: ${result['departmentId']}');
             await bindingProvider.updateBinding(
               existingBinding.id,
               userId: user.id,
               departmentId: result['departmentId'],
             );
           } else {
-            // Создаем новую привязку
-            print('Creating new binding for userId: ${user.id}, departmentId: ${result['departmentId']}');
             await bindingProvider.createBinding(
               userId: user.id,
               departmentId: result['departmentId'],
             );
           }
         } else if (!result['roles'].contains('ROLE_USER') && bindingProvider.bindings.any((b) => b.userId == user.id)) {
-          // Удаляем привязку, если роль USER снята
-          print('Removing binding for userId: ${user.id} as ROLE_USER was removed');
           await bindingProvider.deleteBindingByUser(user.id);
         }
 
-        print('User updated successfully: ${user.username}');
-        ScaffoldMessenger.of(context).showSnackBar(
+        // ИСПОЛЬЗОВАТЬ СОХРАНЕННУЮ ССЫЛКУ
+        scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('Пользователь успешно обновлён')),
         );
       } catch (e) {
-        print('Error updating user or binding: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
+        // ИСПОЛЬЗОВАТЬ СОХРАНЕННУЮ ССЫЛКУ
+        scaffoldMessenger.showSnackBar(
           SnackBar(content: Text('Ошибка при обновлении: $e')),
         );
       }
-    } else {
-      print('Edit dialog cancelled for user: ${user.username}');
     }
   }
 
   Future<void> _addUser(BuildContext context, UserProvider userProvider) async {
-    // print('Navigating to CreateUserScreen');
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const CreateUserScreen()),
     );
 
     try {
-      // print('Fetching users after adding a new user');
       await userProvider.fetchUsers();
-      // print('Users fetched successfully: ${userProvider.users.length} users');
     } catch (e) {
-      // print('Error fetching users after adding: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Не удалось обновить список пользователей: $e')),
       );
@@ -235,7 +236,6 @@ class UsersTab extends StatelessWidget {
       UserProvider userProvider,
       UserDepartmentBindingProvider bindingProvider,
       ) {
-    // print('Showing delete user dialog for userId: $userId');
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -244,33 +244,21 @@ class UsersTab extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () {
-              // print('Cancel button pressed for userId: $userId');
               Navigator.pop(context);
             },
             child: const Text('Отмена'),
           ),
           TextButton(
             onPressed: () async {
-              // print('Delete button pressed for userId: $userId');
               try {
-                // print('Attempting to delete user with id: $userId');
-                // Удаляем привязки пользователя
-                // print('Deleting bindings for userId: $userId');
                 await bindingProvider.deleteBindingByUser(userId);
-                // print('Bindings deleted for userId: $userId');
-                // Удаляем пользователя
                 await userProvider.deleteUser(userId);
-                // print('User deleted successfully: $userId');
-                // Обновляем список пользователей
-                // print('Fetching users after deletion');
                 await userProvider.fetchUsers();
-                // print('Users fetched successfully: ${userProvider.users.length} users');
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Пользователь удалён')),
                 );
               } catch (e) {
-                // print('Error during user deletion: $e');
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Ошибка при удалении: $e')),
